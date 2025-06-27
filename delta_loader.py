@@ -458,6 +458,11 @@ def retry_failed_files():
                     if os.path.exists(unzip_dir):
                         shutil.rmtree(unzip_dir)
                         logger.info(f"Deleted extracted retry directory {unzip_dir}")
+                    
+                    # Delete the original zip file after successful retry processing
+                    if retry_success and os.path.exists(processing_path):
+                        os.remove(processing_path)
+                        logger.info(f"Deleted successfully processed retry zip file: {processing_path}")
                         
                 else:
                     # Process single file directly 
@@ -470,6 +475,11 @@ def retry_failed_files():
                     # Remove from failed directory after successful retry
                     remove_from_failed_dir(os.path.basename(filename))
                     logger.info(f"✅ Successfully retried and completed: {filename}")
+                    
+                    # For non-zip files, delete the processing file after successful retry
+                    if not zipfile.is_zipfile(processing_path) and os.path.exists(processing_path):
+                        os.remove(processing_path)
+                        logger.info(f"Deleted successfully processed retry file: {processing_path}")
                 else:
                     failed_retries.append(filename)
                     # Move back to failed directory
@@ -605,6 +615,14 @@ def main():
             with connection_pool.get_connection() as conn:
                 mark_file_status(conn, original_file_name, "COMPLETED")
             logger.info(f"Marked original file as COMPLETED: {original_file_name} (processed {len(processed_files)} extracted files)")
+            
+            # Delete the original zip file after successful processing
+            original_zip_path = os.path.join(DOWNLOAD_DIR, os.path.basename(original_file_name))
+            if os.path.exists(original_zip_path):
+                os.remove(original_zip_path)
+                logger.info(f"Deleted processed zip file: {original_zip_path}")
+            else:
+                logger.warning(f"Zip file not found for deletion: {original_zip_path}")
             
             # After processing all files, delete the extracted directory and contents
             logger.info(f"Deleting extracted directory {unzip_dir}...")
