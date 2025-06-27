@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # MOT Delta Loader Cron Script
+
 # This script sets up the environment and runs delta_loader.py nightly
 
 # Set strict error handling

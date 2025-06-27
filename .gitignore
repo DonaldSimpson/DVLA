@@ -1,7 +1,7 @@
 # Exclude everything by default
 *
 
-# Include only the specific Python files we want to track
+# Include only the specific Python files we want to track...
 !initial_bulk_download.py
 !initial_loader.py
 !delta_loader.py

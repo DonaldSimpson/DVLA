@@ -4,6 +4,11 @@ import logging
 import json
 import urllib.parse  # for URL decoding
 
+# python3 -m venv venv; source venv/bin/activate; pip install mysql-connector-python; pip install requests
+# python initial_bulk_download.py
+
+# Used to fetch the initial "bulk" file as a one-off, that should be over 40GB in size.
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

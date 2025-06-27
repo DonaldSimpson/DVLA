@@ -14,6 +14,10 @@ import zipfile
 import shutil
 import argparse
 
+# python3 -m venv venv; source venv/bin/activate; pip install mysql-connector-python; pip install requests
+# python delta_loader.py
+
+# Used to load incremental updates from DVLA MOT API, processing delta files and ignoring any that are already-laoded/processed.
 
 # -------------------- Logging --------------------
 logging.basicConfig(

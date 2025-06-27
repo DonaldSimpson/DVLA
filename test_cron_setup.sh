@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Test script for MOT Delta Loader cron setup
+
 # This script tests the environment and dependencies without running the full loader
 
 set -euo pipefail

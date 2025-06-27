@@ -12,6 +12,8 @@ import threading
 # python3 -m venv venv; source venv/bin/activate; pip install mysql-connector-python; pip install requests
 # python initial_loader.py
 
+# Used to load the initial "bulk" file as a one-off, that should be over 40GB in size.
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)

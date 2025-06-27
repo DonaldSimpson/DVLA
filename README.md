@@ -2,7 +2,10 @@
 
 ## Overview
 
-This project automates the process of downloading, processing, and importing MOT (Ministry of Transport) vehicle data from the DVLA API into a MySQL database. It consists of several Python scripts that handle different stages of the workflow, including downloading data files, loading them into the database, and tracking progress.
+This project automates the process of downloading, processing, and importing MOT (Ministry of Transport) vehicle data from the DVLA API into a MySQL database. 
+
+
+It consists of several Python scripts that handle different stages of the workflow, including downloading data files, loading them into the database, and tracking progress.
 
 
 To gain access to the DVLA's MOT history data via an API, you need to register for an API key here: 
