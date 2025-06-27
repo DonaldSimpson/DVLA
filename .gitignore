@@ -1,0 +1,62 @@
+# Exclude everything by default
+*
+
+# Include only the specific Python files we want to track
+!initial_bulk_download.py
+!initial_loader.py
+!delta_loader.py
+!README.md
+!schema.sql
+
+# Include the gitignore file itself
+!.gitignore
+
+# Include shell scripts
+!run_delta_loader.sh
+!test_cron_setup.sh
+
+# Exclude all directories explicitly
+__pycache__/
+archived/
+bulk-light-vehicle*/
+downloads/
+failed/
+venv/
+delta-light-vehicle*/
+
+# Common Python excludes (just in case)
+*.pyc
+*.pyo
+*.pyd
+__pycache__
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment and config files
+.env
+.venv
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Data files
+*.txt
+*.json
+*.gz
+*.zip
