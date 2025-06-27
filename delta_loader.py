@@ -237,6 +237,17 @@ def is_file_imported(conn, filename: str) -> bool:
     cursor.close()
     return result is not None
 
+def is_file_downloaded_or_completed(conn, filename: str) -> bool:
+    """Check if file is already downloaded or completed"""
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT 1 FROM import_log WHERE filename = %s AND status IN ('DOWNLOADED', 'COMPLETED') LIMIT 1",
+        (filename,),
+    )
+    result = cursor.fetchone()
+    cursor.close()
+    return result is not None
+
 def get_failed_files(conn) -> List[str]:
     """Get list of files marked as FAILED in the database"""
     cursor = conn.cursor()
@@ -515,6 +526,7 @@ def main():
         files_skipped = []
         downloaded_files = []
         unzipped_dirs = []
+        unzip_to_original_file = {}  # Map unzip directory to original file name
 
         with connection_pool.get_connection() as conn:
             for f in all_files:
@@ -559,8 +571,8 @@ def main():
                     logger.info(f"Finished downloading {name}")
                     downloaded_files.append(local_path)
 
-                    # Record downloaded file in import_log as COMPLETED
-                    mark_file_status(conn, name, "COMPLETED")
+                    # Record downloaded file in import_log as DOWNLOADED
+                    mark_file_status(conn, name, "DOWNLOADED")
                 else:
                     logger.info(f"File already downloaded: {name}")
                     downloaded_files.append(local_path)
@@ -574,19 +586,26 @@ def main():
                         zip_ref.extractall(unzip_dir)
                     logger.info(f"Finished unzipping {local_path}")
                     unzipped_dirs.append(unzip_dir)
+                    unzip_to_original_file[unzip_dir] = name  # Map unzip dir to original file name
 
         # Process all json.gz files inside each unzipped directory
         for unzip_dir in unzipped_dirs:
+            original_file_name = unzip_to_original_file[unzip_dir]
             logger.info(f"Processing extracted files in {unzip_dir}...")
+            processed_files = []
             for root, _, files in os.walk(unzip_dir):
                 for file in files:
                     if file.endswith(".json.gz"):
                         file_path = os.path.join(root, file)
                         logger.info(f"Processing file {file_path}...")
                         process_file(file_path)
-                        # Record processed file in import_log as COMPLETED
-                        with connection_pool.get_connection() as conn:
-                            mark_file_status(conn, file, "COMPLETED")
+                        processed_files.append(file)
+            
+            # Mark the original downloaded file as COMPLETED after all extracted files are processed
+            with connection_pool.get_connection() as conn:
+                mark_file_status(conn, original_file_name, "COMPLETED")
+            logger.info(f"Marked original file as COMPLETED: {original_file_name} (processed {len(processed_files)} extracted files)")
+            
             # After processing all files, delete the extracted directory and contents
             logger.info(f"Deleting extracted directory {unzip_dir}...")
             shutil.rmtree(unzip_dir)
