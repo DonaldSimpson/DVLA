@@ -1,4 +1,10 @@
 -- Schema for DVLA MOT Data Import
+-- 
+-- Status Column Fix: Updated import_log.status to use shorter values for compatibility
+-- STARTED (7) -> Processing has begun
+-- READY (5) -> File downloaded and ready for processing  
+-- COMPLETED (9) -> File fully processed
+-- FAILED (6) -> Processing failed
 
 CREATE DATABASE IF NOT EXISTS mot_data;
 USE mot_data;
@@ -46,11 +52,16 @@ CREATE TABLE IF NOT EXISTS defects (
 );
 
 -- Import log table
+-- Tracks the processing status of downloaded files
+-- Status values: STARTED, READY, COMPLETED, FAILED
 CREATE TABLE IF NOT EXISTS import_log (
     filename VARCHAR(255) PRIMARY KEY,
     import_timestamp TIMESTAMP,
-    status VARCHAR(20)
+    status VARCHAR(20) NOT NULL DEFAULT 'STARTED'
 );
+
+-- Migration: Update any existing DOWNLOADED status to READY for compatibility
+UPDATE import_log SET status = 'READY' WHERE status = 'DOWNLOADED';
 
 -- Import batch report table
 CREATE TABLE IF NOT EXISTS import_batch_report (

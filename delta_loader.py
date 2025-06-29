@@ -241,7 +241,7 @@ def is_file_downloaded_or_completed(conn, filename: str) -> bool:
     """Check if file is already downloaded or completed"""
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT 1 FROM import_log WHERE filename = %s AND status IN ('DOWNLOADED', 'COMPLETED') LIMIT 1",
+        "SELECT 1 FROM import_log WHERE filename = %s AND status IN ('READY', 'COMPLETED') LIMIT 1",
         (filename,),
     )
     result = cursor.fetchone()
@@ -581,8 +581,8 @@ def main():
                     logger.info(f"Finished downloading {name}")
                     downloaded_files.append(local_path)
 
-                    # Record downloaded file in import_log as DOWNLOADED
-                    mark_file_status(conn, name, "DOWNLOADED")
+                    # Record downloaded file in import_log as READY
+                    mark_file_status(conn, name, "READY")
                 else:
                     logger.info(f"File already downloaded: {name}")
                     downloaded_files.append(local_path)
