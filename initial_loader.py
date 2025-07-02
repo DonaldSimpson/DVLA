@@ -226,9 +226,11 @@ def process_file(filepath):
                         defects = mot_test.get('defects', [])
                         for defect in defects:
                             defects_batch.append({
-                                'mot_test_id': None,  # Will be updated after mot_tests insert
                                 'registration': registration,
-                                'defect': defect
+                                'completedDate': mot_test.get('completedDate'),
+                                'dangerous': defect.get('dangerous', False),
+                                'text': defect.get('text'),
+                                'type': defect.get('type')
                             })
 
                     processed += 1
@@ -240,11 +242,32 @@ def process_file(filepath):
                                 inserted, failed = batch_insert_vehicles(cursor, vehicles_batch)
                                 inserted_vehicles += inserted
                                 failed_vehicles += failed
-
+                                
                                 inserted_mt, failed_mt = batch_insert_mot_tests(cursor, mot_tests_batch)
                                 inserted_mot_tests += inserted_mt
                                 failed_mot_tests += failed_mt
-
+                                
+                                # Insert defects for this batch
+                                defect_records = []
+                                for d in defects_batch:
+                                    cdate = clean_datetime(d['completedDate'])
+                                    cursor.execute(
+                                        "SELECT id FROM mot_tests WHERE registration = %s AND completed_date = %s LIMIT 1",
+                                        (d['registration'], cdate)
+                                    )
+                                    res = cursor.fetchone()
+                                    if res:
+                                        defect_records.append({
+                                            'mot_test_id': res[0],
+                                            'dangerous': d['dangerous'],
+                                            'text': d['text'],
+                                            'type': d['type']
+                                        })
+                                if defect_records:
+                                    # Batch insert defects to avoid lock issues
+                                    for i in range(0, len(defect_records), BATCH_SIZE):
+                                        batch_insert_defects(cursor, defect_records[i:i + BATCH_SIZE])
+                                
                                 conn.commit()
 
                         vehicles_batch.clear()
@@ -281,13 +304,15 @@ def process_file(filepath):
                         }
                         mot_tests_batch.append(mot_test_record)
 
-                        # Defects will be linked after mot_tests inserted, so store temporarily with index
+                        # Defects will be linked after mot_tests inserted, so store temporarily
                         defects = mot_test.get('defects', [])
                         for defect in defects:
                             defects_batch.append({
-                                'mot_test_id': None,  # Will be updated after mot_tests insert
                                 'registration': registration,
-                                'defect': defect
+                                'completedDate': mot_test.get('completedDate'),
+                                'dangerous': defect.get('dangerous', False),
+                                'text': defect.get('text'),
+                                'type': defect.get('type')
                             })
 
                     processed += 1
@@ -299,11 +324,32 @@ def process_file(filepath):
                                 inserted, failed = batch_insert_vehicles(cursor, vehicles_batch)
                                 inserted_vehicles += inserted
                                 failed_vehicles += failed
-
+                                
                                 inserted_mt, failed_mt = batch_insert_mot_tests(cursor, mot_tests_batch)
                                 inserted_mot_tests += inserted_mt
                                 failed_mot_tests += failed_mt
-
+                                
+                                # Insert defects for this batch
+                                defect_records = []
+                                for d in defects_batch:
+                                    cdate = clean_datetime(d['completedDate'])
+                                    cursor.execute(
+                                        "SELECT id FROM mot_tests WHERE registration = %s AND completed_date = %s LIMIT 1",
+                                        (d['registration'], cdate)
+                                    )
+                                    res = cursor.fetchone()
+                                    if res:
+                                        defect_records.append({
+                                            'mot_test_id': res[0],
+                                            'dangerous': d['dangerous'],
+                                            'text': d['text'],
+                                            'type': d['type']
+                                        })
+                                if defect_records:
+                                    # Batch insert defects to avoid lock issues
+                                    for i in range(0, len(defect_records), BATCH_SIZE):
+                                        batch_insert_defects(cursor, defect_records[i:i + BATCH_SIZE])
+                                
                                 conn.commit()
 
                         vehicles_batch.clear()
@@ -318,7 +364,7 @@ def process_file(filepath):
                     logger.error(f"[{thread_name}] Unexpected error at line {line_number}: {e}")
 
         # Insert any remaining batches with fresh connection
-        if vehicles_batch or mot_tests_batch:
+        if vehicles_batch or mot_tests_batch or defects_batch:
             with connection_pool.get_connection() as conn:
                 with conn.cursor() as cursor:
                     if vehicles_batch:
@@ -329,6 +375,25 @@ def process_file(filepath):
                         inserted_mt, failed_mt = batch_insert_mot_tests(cursor, mot_tests_batch)
                         inserted_mot_tests += inserted_mt
                         failed_mot_tests += failed_mt
+                    # Insert any remaining defects
+                    if defects_batch:
+                        defect_records = []
+                        for d in defects_batch:
+                            cdate = clean_datetime(d['completedDate'])
+                            cursor.execute(
+                                "SELECT id FROM mot_tests WHERE registration = %s AND completed_date = %s LIMIT 1",
+                                (d['registration'], cdate)
+                            )
+                            res = cursor.fetchone()
+                            if res:
+                                defect_records.append({
+                                    'mot_test_id': res[0],
+                                    'dangerous': d['dangerous'],
+                                    'text': d['text'],
+                                    'type': d['type']
+                                })
+                        if defect_records:
+                            batch_insert_defects(cursor, defect_records)
                     conn.commit()
 
         logger.info(f"[{thread_name}] ✅ Finished processing {processed} vehicles from {filepath}")

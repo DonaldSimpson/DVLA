@@ -3,6 +3,8 @@ import requests
 import logging
 import json
 import urllib.parse  # for URL decoding
+import zipfile
+import sys
 
 # python3 -m venv venv; source venv/bin/activate; pip install mysql-connector-python; pip install requests
 # python initial_bulk_download.py
@@ -67,19 +69,27 @@ def fetch_file_list(access_token):
         return None
 
 def download_file(file_url, file_name):
-    """Download a file from the provided URL and save it locally."""
+    """Download a file from the provided URL and save it locally with progress feedback."""
     # Do NOT decode the URL; use as-is to preserve S3 signature
     try:
         logger.info(f'Downloading file: {file_name} from {file_url}')
         response = requests.get(file_url, stream=True)  # No additional headers
         response.raise_for_status()
-
-        # Save the file locally
+        total_size = int(response.headers.get('content-length', 0))
+        downloaded = 0
+        last_logged = 0
+        # Save the file locally with progress logging
         with open(file_name, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):  # Download in chunks
-                if chunk:  # Filter out keep-alive chunks
-                    f.write(chunk)
-
+            for chunk in response.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                if total_size:
+                    downloaded += len(chunk)
+                    percent = int(downloaded * 100 / total_size)
+                    if percent >= last_logged + 10:
+                        last_logged += 10
+                        logger.info(f'Download progress: {last_logged}%')
         logger.info(f'File downloaded successfully: {file_name}')
     except requests.exceptions.RequestException as e:
         logger.error(f'Error downloading file {file_name}: {e}')
@@ -102,19 +112,30 @@ def main():
         logger.critical('Failed to fetch file list.')
         return
 
-    # Process and download bulk files
-    for file in file_list.get('bulk', []):  # Assuming 'bulk' is the key holding the list of bulk files
-        file_url = file.get('downloadUrl')
-        file_name = file.get('filename').split('/')[-1]  # Extract the file name from the path
-        if file_url and file_name:
-            download_file(file_url, file_name)
-
-    # Process and download delta files
-    for file in file_list.get('delta', []):  # Assuming 'delta' is the key holding the list of delta files
-        file_url = file.get('downloadUrl')
-        file_name = file.get('filename').split('/')[-1]  # Extract the file name from the path
-        if file_url and file_name:
-            download_file(file_url, file_name)
+    # Process and download only the latest bulk file
+    bulk_files = file_list.get('bulk', [])
+    if not bulk_files:
+        logger.critical('No bulk files found. Exiting.')
+        sys.exit(1)
+    # Assuming bulk_files are sorted by date, take the last entry as the latest
+    latest_bulk = bulk_files[-1]
+    file_url = latest_bulk.get('downloadUrl')
+    file_name = latest_bulk.get('filename').split('/')[-1]
+    if not file_url or not file_name:
+        logger.critical('Invalid bulk file entry. Exiting.')
+        sys.exit(1)
+    # Determine extraction directory name (without .zip extension)
+    extract_dir = file_name.rstrip('.zip')
+    if os.path.exists(extract_dir):
+        logger.critical(f'Extraction directory already exists: {extract_dir}. Exiting.')
+        sys.exit(1)
+    # Download the file
+    download_file(file_url, file_name)
+    # Extract downloaded zip file
+    logger.info(f'Extracting {file_name} into directory: {extract_dir}')
+    with zipfile.ZipFile(file_name, 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
+    logger.info('Extraction completed successfully.')
 
     logger.info('Script completed.')
 

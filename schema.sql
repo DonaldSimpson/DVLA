@@ -7,33 +7,33 @@
 -- FAILED (6) -> Processing failed
 
 CREATE DATABASE IF NOT EXISTS mot_data;
-USE mot_data;
+-- In PostgreSQL, connect to mot_data manually (psql \c mot_data)
 
 -- Vehicles table
 CREATE TABLE IF NOT EXISTS vehicles (
     registration VARCHAR(20) PRIMARY KEY,
-    first_used_date DATETIME,
-    registration_date DATETIME,
-    manufacture_date DATETIME,
+    first_used_date TIMESTAMP,
+    registration_date TIMESTAMP,
+    manufacture_date TIMESTAMP,
     primary_colour VARCHAR(50),
     secondary_colour VARCHAR(50),
     engine_size INT,
     model VARCHAR(100),
     make VARCHAR(100),
     fuel_type VARCHAR(50),
-    last_mot_test_date DATETIME,
+    last_mot_test_date TIMESTAMP,
     last_update_timestamp VARCHAR(50),
     data_source VARCHAR(50),
-    last_update_date DATETIME,
+    last_update_date TIMESTAMP,
     modification VARCHAR(50)
 );
 
 -- MOT Tests table
 CREATE TABLE IF NOT EXISTS mot_tests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     registration VARCHAR(20),
-    completed_date DATETIME,
-    expiry_date DATETIME,
+    completed_date TIMESTAMP,
+    expiry_date TIMESTAMP,
     test_result VARCHAR(50),
     odometer_value INT,
     odometer_unit VARCHAR(20),
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS mot_tests (
 
 -- Defects table
 CREATE TABLE IF NOT EXISTS defects (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     mot_test_id INT,
     dangerous BOOLEAN,
     text TEXT,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS defects (
 -- Import log table
 -- Tracks the processing status of downloaded files
 -- Status values: STARTED, READY, COMPLETED, FAILED
-CREATE TABLE IF NOT EXISTS import_log (
+CREATE UNLOGGED TABLE IF NOT EXISTS import_log (
     filename VARCHAR(255) PRIMARY KEY,
     import_timestamp TIMESTAMP,
     status VARCHAR(20) NOT NULL DEFAULT 'STARTED'
@@ -65,9 +65,9 @@ UPDATE import_log SET status = 'READY' WHERE status = 'DOWNLOADED';
 
 -- Import batch report table
 CREATE TABLE IF NOT EXISTS import_batch_report (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    start_time DATETIME NOT NULL,
-    end_time DATETIME NOT NULL,
+    id SERIAL PRIMARY KEY,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
     duration_seconds INT NOT NULL,
     files_processed INT NOT NULL,
     files_list TEXT NOT NULL,
@@ -76,3 +76,8 @@ CREATE TABLE IF NOT EXISTS import_batch_report (
     total_defects_added INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_mot_tests_completed_date ON mot_tests(completed_date);
+CREATE INDEX IF NOT EXISTS idx_defects_mot_test_id ON defects(mot_test_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_make_model ON vehicles(make, model);

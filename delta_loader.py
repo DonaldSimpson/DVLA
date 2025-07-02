@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import zipfile
 import shutil
 import argparse
+from reimport_defects import batch_insert_defects  # import helper for defect batch inserts
 
 # python3 -m venv venv; source venv/bin/activate; pip install mysql-connector-python; pip install requests
 # python delta_loader.py
@@ -113,6 +114,19 @@ def list_dvla_files(access_token: str) -> List[Dict[str, Any]]:
     r = requests.get(url, headers=headers)
     r.raise_for_status()
     return r.json()
+
+def get_mot_test_id(cursor, registration: str, completed_date: str) -> Optional[int]:
+    """Get MOT test ID for a given registration and completed date."""
+    try:
+        cursor.execute(
+            "SELECT id FROM mot_tests WHERE registration = %s AND completed_date = %s LIMIT 1",
+            (registration, completed_date),
+        )
+        result = cursor.fetchone()
+        return result[0] if result else None
+    except Error as e:
+        logger.error(f"❌ ERROR getting MOT test ID for {registration} at {completed_date}: {e}")
+        return None
 
 # -------------------- DB Connection --------------------
 connection_pool = pooling.MySQLConnectionPool(
@@ -299,6 +313,8 @@ def process_file(filepath: str):
     failed_vehicles = 0
     inserted_mot_tests = 0
     failed_mot_tests = 0
+    inserted_defects = 0
+    failed_defects = 0
 
     try:
         with connection_pool.get_connection() as conn_status:
@@ -337,8 +353,9 @@ def process_file(filepath: str):
                         for defect in defects:
                             defects_batch.append(
                                 {
-                                    "mot_test_id": None,  # Will be updated after mot_tests insert
+                                    "mot_test_id": None,
                                     "registration": registration,
+                                    "completedDate": mot_test.get("completedDate"),
                                     "defect": defect,
                                 }
                             )
@@ -357,6 +374,35 @@ def process_file(filepath: str):
                                 failed_mot_tests += failed_mt
 
                                 conn.commit()
+                                # Final batch defect insert to avoid table locks
+                                for i in range(0, len(defects_batch), BATCH_SIZE):
+                                    batch = defects_batch[i:i + BATCH_SIZE]
+                                    defect_entries = []
+                                    for d in batch:
+                                        mot_id = get_mot_test_id(cursor, d["registration"], d["completedDate"])
+                                        if mot_id:
+                                            d["mot_test_id"] = mot_id
+                                            defect_entries.append(d)
+                                    if defect_entries:
+                                        ins, fail = batch_insert_defects(cursor, defect_entries)
+                                        inserted_defects += ins
+                                        failed_defects += fail
+                                        conn.commit()
+                                defects_batch.clear()
+                                # Insert defects in batches to avoid table locks
+                                for i in range(0, len(defects_batch), BATCH_SIZE):
+                                    batch = defects_batch[i:i + BATCH_SIZE]
+                                    defect_entries = []
+                                    for d in batch:
+                                        mot_id = get_mot_test_id(cursor, d["registration"], d["completedDate"])
+                                        if mot_id:
+                                            d["mot_test_id"] = mot_id
+                                            defect_entries.append(d)
+                                    if defect_entries:
+                                        ins, fail = batch_insert_defects(cursor, defect_entries)
+                                        inserted_defects += ins
+                                        failed_defects += fail
+                                        conn.commit()
 
                         vehicles_batch.clear()
                         mot_tests_batch.clear()
@@ -602,14 +648,18 @@ def main():
         for unzip_dir in unzipped_dirs:
             original_file_name = unzip_to_original_file[unzip_dir]
             logger.info(f"Processing extracted files in {unzip_dir}...")
-            processed_files = []
+            # Gather all JSON.GZ files for progress tracking
+            json_files = []
             for root, _, files in os.walk(unzip_dir):
                 for file in files:
                     if file.endswith(".json.gz"):
-                        file_path = os.path.join(root, file)
-                        logger.info(f"Processing file {file_path}...")
-                        process_file(file_path)
-                        processed_files.append(file)
+                        json_files.append(os.path.join(root, file))
+            total_files = len(json_files)
+            processed_files = []
+            for idx, file_path in enumerate(json_files, start=1):
+                logger.info(f"Processing file {idx}/{total_files}: {file_path}")
+                process_file(file_path)
+                processed_files.append(os.path.basename(file_path))
             
             # Mark the original downloaded file as COMPLETED after all extracted files are processed
             with connection_pool.get_connection() as conn:
