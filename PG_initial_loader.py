@@ -11,6 +11,7 @@ import threading
 import argparse
 import csv
 import tempfile
+import sys
 
 # For environment: pip install psycopg2-binary
 # python PG_initial_loader.py --use-copy
@@ -460,9 +461,6 @@ def main():
                 except Exception as e:
                     logger.error(f"Thread error: {e}")
     finally:
-        conn = pool.getconn()
-        enable_indexes(conn)
-        pool.putconn(conn)
         if pool:
             pool.closeall()
         logger.info("DB connection pool closed.")

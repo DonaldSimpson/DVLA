@@ -38,6 +38,22 @@ CREATE TABLE IF NOT EXISTS mot_tests (
     odometer_value INT,
     odometer_unit VARCHAR(20),
     odometer_result_type VARCHAR(50),
+);
+
+-- User Audit Log table for tracking site visitors and actions
+CREATE TABLE IF NOT EXISTS user_audit_log (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    referrer TEXT,
+    session_id VARCHAR(128),
+    endpoint VARCHAR(128),
+    method VARCHAR(8),
+    request_data TEXT,
+    visit_count INT DEFAULT 1,
+    status VARCHAR(16) DEFAULT 'ALLOWED'
+);
     FOREIGN KEY (registration) REFERENCES vehicles(registration)
 );
 
