@@ -1,5 +1,11 @@
 # DVLA MOT Data Import Project
 
+
+## This project has been moved to a private gitlab repo, this one is being archived in cae it's of use to anyone
+
+There is a bug in the insertion of defects that needs fixed, otherwise it was working well with MySQL and should work similarly for PostgreSQL.
+
+
 ## Overview
 
 This project automates the process of downloading, processing, and importing MOT (Ministry of Transport) vehicle data from the DVLA API into a MySQL database. 
