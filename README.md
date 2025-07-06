@@ -1,9 +1,9 @@
 # DVLA MOT Data Import Project
 
 
-## This project has been moved to a private gitlab repo, this one is being archived in cae it's of use to anyone
+## This project has been moved to a private gitlab repo, the db-related code has been left here and archived in case it's of use/interest to anyone.
 
-There is a bug in the insertion of defects that needs fixed, otherwise it was working well with MySQL and should work similarly for PostgreSQL.
+Note that there is a bug in the insertion of defects that needs fixed, otherwise it was working well with MySQL and should work similarly for PostgreSQL.
 
 
 ## Overview
